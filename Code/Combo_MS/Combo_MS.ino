@@ -125,24 +125,16 @@ void setup() {
 
   // make sure at initial values
   pEncoder.setOffset(pOffset);
-
-  MP.selectChannel(0);
-  initTOffset = tEncoder.rawAngle()* AS5600_RAW_TO_DEGREES;
-  travO = initTOffset;
-  tEncoder.setOffset(initTOffset);
-
+  
   goToZero();
+  Serial.println(getTrav());
 }
 
 void loop() {
   unsigned long cLoopTime = millis();
-  
-  //if (cLoopTime - oLoopTime >= 50){
-  //    Serial.println(getTrav());
-  //    oLoopTime = cLoopTime;
-  //}
+
   // Motor Code
-  
+
   float currentPos = getTrav();
   while (currentPos < 5.0){
     currentPos = getTrav();
@@ -165,10 +157,23 @@ void loop() {
     Serial.println(currentPos);
     moveMotor(0, -5, 15);
   }
+
+}
+
+void setZero(){
+  Serial.println("Zero Start");
+  MP.selectChannel(0);
+  float zero = tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
+  tEncoder.setOffset(-zero);
+  Serial.println(zero);
+  Serial.println(tEncoder.getOffset());
+  Serial.println(tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES);
+  Serial.println("Zero End");
+  travRots = 0;
+  travO = 0;
 }
 
 void goToZero(){
-  
   while (inZero == false){
     unsigned long cTime = millis();
     moveMotor(0, -2, 6);
@@ -178,9 +183,9 @@ void goToZero(){
     }
   }
   Serial.println(getTrav());
-  moveMotor(0, 50, 50);
+  moveMotor(0, 100, 50);
+  delay(500);
   setZero();
-  Serial.println("Zero'd!");
 }
 
 void moveMotor(int steps1, int steps2, unsigned long timemilsec) {
@@ -311,20 +316,9 @@ float getTrav(){
   return(totTrav);
 }
 
-void setZero(){
-  MP.selectChannel(0);
-  float zero = getTrav();
-  tEncoder.setOffset(zero);
-  Serial.println(zero);
-  Serial.println(tEncoder.getOffset());
-  travRots = 0;
-  travO = 0;
-}
-
 void hitZero() { // This needs work
   // ISR, deal with hitting zero limit switch
   if (millis() - oTimeHit >= debounceTime) {
-    Serial.println("Zero!");
     oTimeHit = millis();
     inZero = true;
   }
