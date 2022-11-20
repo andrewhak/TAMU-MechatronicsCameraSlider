@@ -161,14 +161,9 @@ void loop() {
 }
 
 void setZero(){
-  Serial.println("Zero Start");
   MP.selectChannel(0);
   float zero = tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
   tEncoder.setOffset(-zero);
-  Serial.println(zero);
-  Serial.println(tEncoder.getOffset());
-  Serial.println(tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES);
-  Serial.println("Zero End");
   travRots = 0;
   travO = 0;
 }
@@ -184,7 +179,6 @@ void goToZero(){
   }
   Serial.println(getTrav());
   moveMotor(0, 100, 50);
-  delay(50);
   setZero();
 }
 
