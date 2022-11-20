@@ -23,13 +23,11 @@ int SDAPin = 20; // I2C Pins
 int I2CPin = 21;
 
 float pan = 0; // Value of Pan Encoder
-float travN = 0; // Current Value of the Traverse Encoder
-float travO = 0; // Old Value of the Traverse Encoder
+volatile float travO = 0; // Old Value of the Traverse Encoder
 float pOffset = -117.6;
 
-int travRots = 0; // Number of times travel encoder has rotated 360 degrees
-float totTrav = 0;
-float vel = 0;
+volatile int travRots = 0; // Number of times travel encoder has rotated 360 degrees
+volatile float vel = 0;
 float initTOffset = 0;
 
 int availBytes = 0;
@@ -166,19 +164,23 @@ float calcRotInterval (int numPulses)                              //Calculate t
   return inter;
 }
 
-void getPosition(){
-  // Sensor Code
+void getPan(){
   // Poll Pan Encoder
   MP.selectChannel(1);
   pan = pEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
-  Serial.print("Pan: ");
-  Serial.println(pan);
+  return pan
+}
 
+void getTrav(){
   // Poll Travel Encoder
+  // travO and travRots are stored globally as need to 
+  // remember last poll to know if done a full rotation
+  // and need to keep track of rotations seperate
+  // to avoid double counting partial rotations
   
   MP.selectChannel(0);
-  
-  travN = tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
+
+  float travN = tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
 
   if ((travN < 90) and (travO > 270)){
     travRots = travRots + 1;
@@ -188,11 +190,9 @@ void getPosition(){
     travRots = travRots - 1;
   }
 
-  totTrav = travRots + travN/360;
-  
-  Serial.print("Travel: ");
-  Serial.println(totTrav);
+  float totTrav = travRots + travN/360;
   travO = travN;
+  return(totTrav)
 }
 
 
