@@ -23,10 +23,13 @@ int SDAPin = 20; // I2C Pins
 int I2CPin = 21;
 
 float pan = 0; // Value of Pan Encoder
-volatile float travO = 0; // Old Value of the Traverse Encoder
+volatile float panO = 0; // Old Value of the Pan Encoder
+volatile float panRots = 0; // Number of times panned around clockwise(?)
+volatile bool clockWise = true; // Whether pan is in negative or positive angles
 float pOffset = -117.6;
 
 volatile int travRots = 0; // Number of times travel encoder has rotated 360 degrees
+volatile float travO = 0; // Old Value of the Traverse Encoder
 volatile float vel = 0;
 float initTOffset = 0;
 
@@ -120,33 +123,36 @@ void setup() {
 
 void loop() {
 
+  delay(100);
+  Serial.println(getPan());
+
   // Motor Code
 
   // Need to figure out how to merge, maybe make sensor code a func that outputs the current position
   // and have the motor code then use that?
   
-  pinMode(enablePin, OUTPUT);
+  //pinMode(enablePin, OUTPUT);
 
-  float interval = calcInterval (travelPulses);         //Calculate the pulse interval required to move the required distance in the required time
+  //float interval = calcInterval (travelPulses);         //Calculate the pulse interval required to move the required distance in the required time
 
   // put your main code here, to run repeatedly:
-  for (int i = 1; i <= travelPulses; i++)               //Pulse the motor to move the required distance in the required time
-  {
-    digitalWrite(travStepPin, HIGH);
-    delayMicroseconds(interval / 2);
-    digitalWrite(travStepPin, LOW);
-    delayMicroseconds(interval / 2);
-  }
+  //for (int i = 1; i <= travelPulses; i++)               //Pulse the motor to move the required distance in the required time
+  //{
+  //  digitalWrite(travStepPin, HIGH);
+  //  delayMicroseconds(interval / 2);
+  //  digitalWrite(travStepPin, LOW);
+  //  delayMicroseconds(interval / 2);
+  //}
 
-  delay(1000);
+  //delay(1000);
 
-  for (int i = 1; i <= travelPulses; i++)               //Pulse the motor to move the required distance in the required time
-  {
-    digitalWrite(rotStepPin, HIGH);
-    delayMicroseconds(interval / 2);
-    digitalWrite(rotStepPin, LOW);
-    delayMicroseconds(interval / 2);
-  }
+  //for (int i = 1; i <= travelPulses; i++)               //Pulse the motor to move the required distance in the required time
+  //{
+  //  digitalWrite(rotStepPin, HIGH);
+  //  delayMicroseconds(interval / 2);
+  //  digitalWrite(rotStepPin, LOW);
+  //  delayMicroseconds(interval / 2);
+  //}
 
 }
 
@@ -162,14 +168,23 @@ float calcRotInterval (int numPulses)                              //Calculate t
   return inter;
 }
 
-void getPan(){
+float getPan(){
   // Poll Pan Encoder
   MP.selectChannel(1);
   pan = pEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
-  return pan
+
+  if ((pan < 90) and (panO > 270)){
+    panRots = panRots + 1;
+  }
+  else if ((pan > 270) and (panO < 90)){
+    panRots = panRots - 1;
+  }
+  panO = pan;
+  pan = pan + 360*panRots;
+  return pan;
 }
 
-void getTrav(){
+float getTrav(){
   // Poll Travel Encoder
   // travO and travRots are stored globally as need to 
   // remember last poll to know if done a full rotation
@@ -190,7 +205,7 @@ void getTrav(){
 
   float totTrav = travRots + travN/360;
   travO = travN;
-  return(totTrav)
+  return(totTrav);
 }
 
 
