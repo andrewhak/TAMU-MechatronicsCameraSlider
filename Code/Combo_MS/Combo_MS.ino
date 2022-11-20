@@ -184,7 +184,7 @@ void goToZero(){
   }
   Serial.println(getTrav());
   moveMotor(0, 100, 50);
-  delay(500);
+  delay(50);
   setZero();
 }
 
