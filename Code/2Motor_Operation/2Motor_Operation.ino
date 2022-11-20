@@ -4,8 +4,7 @@
 #define rotDirPin 23
 #define rotStepPin 22
 
-bool travstate = false;
-bool rotstate = false;
+
 
 //int steps1 = 16 * 50;
 //int steps2 = 16 * 25;
@@ -39,7 +38,8 @@ void loop() {
 
 void moveMotor(int steps1, int steps2, unsigned long timemilsec) {
   // put your main code here, to run repeatedly:
-
+  bool travstate = false;
+  bool rotstate = false;
   float interval1;
   float interval2;
 
