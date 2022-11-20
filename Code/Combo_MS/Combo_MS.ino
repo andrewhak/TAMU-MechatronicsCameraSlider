@@ -120,8 +120,6 @@ void setup() {
 
 void loop() {
 
-  getPosition()
-  
   // Motor Code
 
   // Need to figure out how to merge, maybe make sensor code a func that outputs the current position
