@@ -21,6 +21,8 @@ const unsigned long debounceTime = 10;
 int SDAPin = 20; // I2C Pins
 int I2CPin = 21;
 
+volatile bool inZero = false;
+
 float pan = 0; // Value of Pan Encoder
 volatile float panO = 0; // Old Value of the Pan Encoder
 volatile float panRots = 0; // Number of times panned around clockwise
@@ -119,9 +121,11 @@ void setup() {
 }
 
 void loop() {
-
-  delay(100);
-  Serial.println(getPan());
+  unsigned long cTime = millis();
+  if (cTime % 50 == 0){
+    Serial.println(getTrav());
+    setZero();
+  }
 
   // Motor Code
 
@@ -205,14 +209,21 @@ float getTrav(){
   return(totTrav);
 }
 
+void setZero(){
+  if (inZero == true) {
+    float zero = tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
+    tEncoder.setOffset(zero);
+    travRots = 0;
+    travO = 0;
+  }
+  inZero = false;
+}
+
 void hitZero() { // This needs work
   // ISR, deal with hitting zero limit switch
   if (millis() - oTimeHit >= debounceTime) {
     Serial.println("Zero!");
     oTimeHit = millis();
-    float zero = tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
-    tEncoder.setOffset(zero);
-    travRots = 0;
-    travO = 0;
+    inZero = true;
   }
 }
