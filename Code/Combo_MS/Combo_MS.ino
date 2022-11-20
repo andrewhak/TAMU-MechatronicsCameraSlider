@@ -16,7 +16,6 @@ TCA9548 MP(0x70);
 
 int zeroPin = 18; // Limit switch's interupt pin is digital pin 18
 volatile int oTimeHit = 0; // Keeps track of when the limite was last hit
-volatile float zero = 0; // Value of Transverse Encoder at limit switch
 const unsigned long debounceTime = 10;
 
 int SDAPin = 20; // I2C Pins
@@ -24,7 +23,7 @@ int I2CPin = 21;
 
 float pan = 0; // Value of Pan Encoder
 volatile float panO = 0; // Old Value of the Pan Encoder
-volatile float panRots = 0; // Number of times panned around clockwise(?)
+volatile float panRots = 0; // Number of times panned around clockwise
 volatile bool clockWise = true; // Whether pan is in negative or positive angles
 float pOffset = -117.6;
 
@@ -32,8 +31,6 @@ volatile int travRots = 0; // Number of times travel encoder has rotated 360 deg
 volatile float travO = 0; // Old Value of the Traverse Encoder
 volatile float vel = 0;
 float initTOffset = 0;
-
-int availBytes = 0;
 
 // Motor Stuff
 
@@ -208,15 +205,14 @@ float getTrav(){
   return(totTrav);
 }
 
-
 void hitZero() { // This needs work
   // ISR, deal with hitting zero limit switch
   if (millis() - oTimeHit >= debounceTime) {
     Serial.println("Zero!");
-    MP.selectChannel(0);
-    zero = tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
+    oTimeHit = millis();
+    float zero = tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
     tEncoder.setOffset(zero);
     travRots = 0;
-    oTimeHit = millis();
+    travO = 0;
   }
 }
