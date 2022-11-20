@@ -10,6 +10,8 @@
 
 AS5600 as5600;   //  use default Wire
 
+// red Vcc, black GND, blue SCL, green SDA, DIR
+
 
 void setup()
 {
