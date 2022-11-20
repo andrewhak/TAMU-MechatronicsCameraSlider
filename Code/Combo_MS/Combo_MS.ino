@@ -122,11 +122,9 @@ void setup() {
 
 void loop() {
   unsigned long cTime = millis();
-  if (cTime % 100 == 0){
-    setZero();
-  }
   if (cTime % 50 == 0){
     Serial.println(getTrav());
+    setZero();
   }
 
   // Motor Code
