@@ -48,6 +48,8 @@ int j = 0;
 float travRotPerStep = 0.0006;
 float rotDegPerStep = 0.07;
 
+float pos1, pos2, rot1, rot2;
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -124,59 +126,54 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  movetospot(30, 2, 10000);
-  delay(1000);
-  movetospot(60, 1, 10000);
-
+  movetospot(30, 5, 5000);
+  movetospot(80, 1, 5000);
 }
 
 
 void movetospot(float targetRot, float targetPos, unsigned long Time) {
-  Serial.println("reached func");
-  float currentPos;
-  float currentRot;
-  float rotError;
-  float posError;
-  int subdivision;
-  int steptime = 50;
-  float travRotPerStep = 0.0006;
-  float rotDegPerStep = 0.07;
-  int rotStep;
-  int posStep;
-  subdivision = Time / steptime;
+
+  double currentPos, currentRot, rotError, posError;
+  int rotStep, posStep;
+
+  float steptime = 50;
+  float travRotPerStep = 0.0006 * 2;
+  float rotDegPerStep = 0.07 * 2;
+  double kpr = .5;
+  double kpp = 3;
+  double kir = 0;
+  double kip = 0;
+  unsigned long previousTime;
+  unsigned long elapsedTime;
+  unsigned long currentTime;
+  double rotcumError, poscumError, rotOut, posOut;
+
   rotError = targetRot - currentRot;
   posError = targetPos - currentPos;
 
+  while (abs(rotError) >= 1 or abs(posError) >= .5) {
+    currentTime = millis();
+    elapsedTime = (double)(currentTime - previousTime);
+    Serial.println(elapsedTime);
 
-  while (abs(rotError) > 0.1 or abs(posError) > 0.1) {
     currentRot = getPan();
     currentPos = getTrav();
 
     rotError = targetRot - currentRot;
     posError = targetPos - currentPos;
 
+    rotcumError += rotError * elapsedTime;
+    poscumError += posError * elapsedTime;
 
-    Serial.println(rotError);
-    Serial.println(posError);
+    rotOut = (kir * rotcumError) + (kpr * rotError);
+    posOut = (kip * poscumError) + (kpp * posError);
+    Serial.println(rotOut);
+    Serial.println(posOut);
+    //    Serial.println(abs(rotError));
+    //    Serial.println(abs(posError));
 
-
-    rotStep = int((rotError * (1 / rotDegPerStep)));
-    posStep = int((posError * (1 / travRotPerStep)));
-
-    Serial.println(rotStep);
-    Serial.println(posStep);
-
-//    moveMotor(rotStep, posStep, steptime);
-
-    float interval1;
-    float interval2;
-
-    unsigned long offset1 = 0;
-    unsigned long offset2 = 0;
-
-    int curstep1 = 0;
-    int curstep2 = 0;
+    rotStep = int(rotOut * 13);
+    posStep = int(posOut * 1600);
 
     if (rotStep < 0) {
       digitalWrite(rotDirPin, LOW);
@@ -184,31 +181,43 @@ void movetospot(float targetRot, float targetPos, unsigned long Time) {
     } else {
       digitalWrite(rotDirPin, HIGH);
     }
+
     if (posStep < 0) {
       digitalWrite(travDirPin, HIGH);
       posStep = abs(posStep);
     } else {
       digitalWrite(travDirPin, LOW);
     }
-    interval1 = (Time / rotStep );
-    interval2 = (Time / posStep );
-    unsigned long currentMotor1Time = millis();
-    unsigned long currentMotor2Time = millis();
 
+
+
+
+    float interval1;
+    float interval2;
+    unsigned long currentMotor1Time = 0;
+    unsigned long currentMotor2Time = 0;
+
+    interval1 = (Time / (rotStep) );
+    interval2 = (Time / (posStep) );
+
+    unsigned long offset1;
+    unsigned long offset2;
+
+    // change direction
+
+    previousTime = currentTime;
     while (currentMotor1Time < steptime) {
-      unsigned long currentMotor1Time = millis();
-      unsigned long currentMotor2Time = millis();
-      if ((currentMotor1Time - offset1) > (interval1 / 2) and curstep1 / 2 < rotStep) {
+      currentMotor1Time = millis();
+      currentMotor2Time = millis();
+
+      if ((currentMotor1Time - offset1) > (interval1 / 2)) {
         step1();
         offset1 = currentMotor1Time;
-        curstep1++;
       }
 
-      if ((currentMotor2Time - offset2) > (interval2 / 2) and curstep2 / 2 < posStep) {
+      if ((currentMotor2Time - offset2) > (interval2 / 2)) {
         step2();
         offset2 = currentMotor2Time;
-        curstep2++;
-
       }
 
     }
