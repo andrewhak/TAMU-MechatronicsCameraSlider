@@ -12,7 +12,6 @@ AS5600 tEncoder; // is channel 1 of multiplexer
 
 TCA9548 MP(0x70);
 
-
 // red Vcc, black GND, blue SCL, green SDA, DIR
 
 int zeroPin = 18; // Limit switch's interupt pin is digital pin 18
@@ -99,6 +98,8 @@ void setup() {
   pinMode(enablePin, INPUT);                              //Open circuit enable pin, disables motors
   
   lcd.clear();                                 //Clear the display
+
+  setupMenu();
 
   //  lcd.clear();
   //  lcd.setCursor(2, 0);
@@ -290,7 +291,11 @@ void inputPanAndRotateData(){
       travPoints[counter] = getTrav(); 
       panPoints[counter]= getPan();
       counter ++;
-      
+
+      pickedAPoint();
+      delay(1000);
+      updateFreePickMenu();
+            
       if (counter > 1){
         finishedPicking = true;
         Serial.println("Done Picking");
@@ -298,6 +303,8 @@ void inputPanAndRotateData(){
     }
     else {
       Serial.println("Back");
+      backToMain();
+      delay(1000);
       finishedPicking = true;
       backToMenu = true;
     }
@@ -341,6 +348,33 @@ void PinB()                                             //Rotary encoder interru
   sei();                                                //Restart interrupts
 }
 
+void setupMenu()                               //Display while setting up
+{
+  lcd.clear();
+  lcd.setCursor(2, 0);
+  lcd.print("Setting Up");
+  lcd.setCursor(2, 1);
+  lcd.print("And Zeroing");
+}
+
+void backToMain()                               //Display while returning to Main Menu
+{
+  lcd.clear();
+  lcd.setCursor(2, 0);
+  lcd.print("Returning To");
+  lcd.setCursor(2, 1);
+  lcd.print("Main Menu");
+}
+
+void pickedAPoint()                               //Display after picking a point
+{
+  lcd.clear();
+  lcd.setCursor(2, 0);
+  lcd.print("Picked a Point");
+  lcd.setCursor(2, 1);
+  lcd.print("");
+}
+
 void updateMainMenu()                               //Updates the display data for the main menu
 {
   lcd.clear();
@@ -357,6 +391,7 @@ void updateMainMenu()                               //Updates the display data f
   lcd.setCursor(0, encoderPos);                   //Set the display cursor position
   lcd.print(">");
 }
+
 
 void updateFreePickMenu()                               //Updates the display data for the pick menu
 {
@@ -375,6 +410,82 @@ void updateFreePickMenu()                               //Updates the display da
   lcd.print(">");
 }
 
+void updateGateMenu()                               //Updates the display data for the pick menu
+{
+  lcd.clear();
+  lcd.setCursor(2, 0);
+  lcd.print("Begin");
+  lcd.setCursor(2, 1);
+  lcd.print("Main Menu");
+
+  int selected = 0;                                 //Stores cursor vertical position to show selected item
+  if (encoderPos == 0)
+    selected = 0;
+  else
+    selected = 1;
+  lcd.setCursor(0, encoderPos);                   //Set the display cursor position
+  lcd.print(">");
+}
+
+
+void waitForConfirmation() {
+  encLowLim = 0;                                            //Mode selection menu, 2 modes
+  encHighLim = 1;
+  encIncrement = 1;
+  updateGateMenu();
+
+
+  boolean confirmed = false;                                //Both used to confirm button push to select mode
+  boolean pressed = false;
+  backToMenu = false;
+  
+  encoderPos = 0;                                           //Encoder starts from 0, first menu option
+  int counter = 0;
+  while (!confirmed)                                        //While the user has not confirmed the selection
+  {
+    byte buttonState = digitalRead (encButton);
+    if (buttonState != oldButtonState)
+    {
+      if (millis () - buttonPressTime >= debounceTime)      //Debounce button
+      {
+        buttonPressTime = millis ();                        //Time when button was pushed
+        oldButtonState =  buttonState;                      //Remember button state for next time
+        if (buttonState == LOW)
+        {
+          modeSelected = encoderPos;                        //If the button is pressed, accept the current digit into the guessed code
+          pressed = true;
+          Serial.println("Button Pushed");
+        }
+        else
+        {
+          if (pressed == true)                              //Confirm the input once the button is released again
+          {
+            confirmed = true;
+            Serial.println("Mode confirmed");
+          }
+        }
+      }
+    }
+    if (encoderPos != prevEncoderPos)                       //Update the display if the encoder position has changed
+    {
+      updateGateMenu();
+      prevEncoderPos = encoderPos;
+    }
+  }
+  Serial.println("Mode selected");
+  if (modeSelected == 0) {                                   //Run required mode function depending on selection
+    Serial.println("Confirmed");
+    confirmed = false;
+    updateGateMenu();
+  }
+  else {
+    Serial.println("Back");
+    backToMain();
+    delay(1000);
+    backToMenu = true;
+  }
+}
+
 void FreeMotion ()                                       //Runs the pan and rotate mode sequence
 {
     pinMode(enablePin, INPUT);
@@ -386,77 +497,62 @@ void FreeMotion ()                                       //Runs the pan and rota
     float travToSteps = 1600; // Rotations per Step, 0.216 Degres per Step
     float panToSteps = 13; // Degrees per Step
 
-    for (int i = 0; i < 2; i = i + 1) {
-      Serial.print("Moving to point ");
-      Serial.println(i+1);
-      
-      float travCommand = travPoints[i];
-      float panCommand = panPoints[i];
-      
-      float startTrav = getTrav(); 
-      float startPan = getPan();
-      
-      int travSteps = int((travCommand - startTrav)*travToSteps);
-      int panSteps = int((panCommand - startPan)*panToSteps);
-
-      moveMotor(panSteps, travSteps, timeDelta);
-
-      Serial.print("Steps per Trav Rotate ");
-      Serial.println(travSteps / (getTrav() - startTrav));
-      Serial.print("Steps per Pan Degree");
-      Serial.println(panSteps / (getPan() - startPan));
-
-      Serial.print("Trav Error ");
-      Serial.println(abs(getTrav() - travCommand));
-      Serial.print("Pan Error ");
-      Serial.println(abs(getPan() - panCommand));
-
-      Serial.print("At point ");
-      Serial.println(i+1);
+    if (backToMenu == false){
+      for (int i = 0; i < 2; i = i + 1) {
+        lcd.clear();
+        lcd.setCursor(2, 0);
+        lcd.print("Moving to");
+        lcd.setCursor(2, 1);
+        lcd.print("Point ");
+        lcd.print(i+1);
+        
+        Serial.print("Moving to point ");
+        Serial.println(i+1);
+        
+        float travCommand = travPoints[i];
+        float panCommand = panPoints[i];
+        
+        float startTrav = getTrav(); 
+        float startPan = getPan();
+        
+        int travSteps = int((travCommand - startTrav)*travToSteps);
+        int panSteps = int((panCommand - startPan)*panToSteps);
+  
+        moveMotor(panSteps, travSteps, timeDelta);
+  
+        Serial.print("Steps per Trav Rotate ");
+        Serial.println(travSteps / (getTrav() - startTrav));
+        Serial.print("Steps per Pan Degree");
+        Serial.println(panSteps / (getPan() - startPan));
+  
+        Serial.print("Trav Error ");
+        Serial.println(abs(getTrav() - travCommand));
+        Serial.print("Pan Error ");
+        Serial.println(abs(getPan() - panCommand));
+  
+        Serial.print("At point ");
+        Serial.println(i+1);
+  
+        if (i+1 == 1){
+          waitForConfirmation();
+          if (backToMenu == true){
+            break;
+          }
+        }
+      }
     }
 
-    Serial.println("Done Following Path");
-    
-    // Maybe add dynamic display of current position later
-    /*
-    if (travelDir == 0)                                         //Set motor travel direction
-      digitalWrite(travDirPin, LOW);
-    else
-      digitalWrite(travDirPin, HIGH);
-    if (rotDir == 0)                                            //Set motor travel direction
-      digitalWrite(rotDirPin, HIGH);
-    else
-      digitalWrite(rotDirPin, LOW);
-    int travelPulses = calcTravelPulses ();                     //Calculate the number of motor pulses required to move the travel distance
-    Serial.print("Travel pulses: ");
-    Serial.println(travelPulses);
-    float interval = calcInterval (travelPulses);               //Calculate the pulse interval required to move the required distance in the required time
-    Serial.print("Interval: ");
-    Serial.println(interval);
-    int rotationPulses = calcRotationPulses ();                 //Calculate the number of motor pulses required to rotate the required angle
-    Serial.print("Rotation pulses: ");
-    Serial.println(rotationPulses);
-    int travelPerRotation = travelPulses/rotationPulses;        //Calculate how much the camera should pan for each rotation step
-    for (int i=1; i<=travelPulses; i++)
-    {
-        digitalWrite(travStepPin, HIGH);
-        int checkRotate = i % travelPerRotation;                //Check if a rotation step must be made
-        if (checkRotate == 0)
-          digitalWrite(rotStepPin, HIGH);
-        delayMicroseconds(interval/2);
-        digitalWrite(travStepPin, LOW);
-        if (checkRotate == 0)
-          digitalWrite(rotStepPin, LOW);
-        delayMicroseconds(interval/2);
-        /*currentDist = i/pulsesPerMM;
-        currentAngle = i/pulsesPerDeg;
-        Serial.print("Dist: ");
-        Serial.println(currentDist);
-        Serial.print("Angle: ");
-        Serial.println(currentAngle);
+    if (backToMenu == false){
+      lcd.clear();
+      lcd.setCursor(2, 0);
+      lcd.print("Done Moving");
+      lcd.setCursor(2, 1);
+      lcd.print(" ");
+  
+      delay(1000);
+  
+      Serial.println("Done Following Path");
     }
-    displayEnd();                                                 //Display the end sequence and disable motors
-    */
 }
 
 void runTrack ()                                                //Runs the object tracking mode sequence
