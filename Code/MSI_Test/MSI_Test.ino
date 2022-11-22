@@ -733,49 +733,53 @@ void step2() {
 
 void movetospot(float targetRot, float targetPos, unsigned long Time) {
 
-  double currentPos, currentRot, rotError, posError;
+  double currentPos, currentRot, rotError1, posError1, rotError2, posError2;
   int rotStep, posStep;
 
-  float steptime = 50;
-  float travRotPerStep = 0.0006 * 2;
-  float rotDegPerStep = 0.07 * 2;
-  double kpr = .5;
+  float steptime = 150;
+  float travRotPerStep = (1/1600) * 2;
+  float rotDegPerStep = (1/13) * 2;
+  double kpr = 0.5;
   double kpp = 3;
-  double kir = 0;
-  double kip = 0;
+  double kir = 0.0;
+  double kip = 0.0;
+  double kdr = 0.5;
+  double kdp = 3;
   unsigned long previousTime;
   unsigned long elapsedTime;
   unsigned long currentTime;
-  double rotcumError, poscumError, rotOut, posOut;
+  double rotcumError, poscumError, rotDeltaError, posDeltaError, rotOut, posOut;
 
-  rotError = targetRot - currentRot;
-  posError = targetPos - currentPos;
+  rotError2 = 0;
+  posError2 = 0;
+  
+  rotError1 = targetRot - currentRot;
+  posError1 = targetPos - currentPos;
 
-  while (abs(rotError) >= 1 or abs(posError) >= .5) {
+  while (abs(rotError1) >= 0.5 or abs(posError1) >= .5/360) {
     currentTime = millis();
     elapsedTime = (double)(currentTime - previousTime);
-    //Serial.println(elapsedTime);
 
     currentRot = getPan();
     currentPos = getTrav();
 
-    rotError = targetRot - currentRot;
-    posError = targetPos - currentPos;
+    rotError1 = targetRot - currentRot;
+    posError1 = targetPos - currentPos;
 
-    rotcumError += rotError * elapsedTime;
-    poscumError += posError * elapsedTime;
+    rotcumError += rotError1;
+    poscumError += posError1;
 
-    rotOut = (kir * rotcumError) + (kpr * rotError);
-    posOut = (kip * poscumError) + (kpp * posError);
-    
-    //Serial.println(rotOut);
-    //Serial.println(posOut);
-    //    Serial.println(abs(rotError));
-    //    Serial.println(abs(posError));
+    rotDeltaError = (rotError1 - rotError2) / elapsedTime;
+    posDeltaError = (posError1 - posError2) / elapsedTime;
+
+    rotOut = (kir * rotcumError) + (kpr * rotError1) + (kdr * rotDeltaError);
+    posOut = (kip * poscumError) + (kpp * posError1) + (kdp * posDeltaError);
 
     rotStep = int(rotOut * 13);
     posStep = int(posOut * 1600);
 
+    previousTime = currentTime;
+    
     if (rotStep < 0) {
       digitalWrite(rotDirPin, LOW);
       rotStep = abs(rotStep);
@@ -792,8 +796,10 @@ void movetospot(float targetRot, float targetPos, unsigned long Time) {
 
     float interval1;
     float interval2;
-    unsigned long currentMotor1Time = 0;
-    unsigned long currentMotor2Time = 0;
+    unsigned long oldMotor1Time = millis();
+    unsigned long oldMotor2Time = millis();
+    unsigned long currentMotor1Time = millis();
+    unsigned long currentMotor2Time = millis();
 
     interval1 = (Time / (rotStep) );
     interval2 = (Time / (posStep) );
@@ -801,10 +807,12 @@ void movetospot(float targetRot, float targetPos, unsigned long Time) {
     unsigned long offset1;
     unsigned long offset2;
 
-    // change direction
+    rotError2 = rotError1;
+    posError2 = posError2;
 
-    previousTime = currentTime;
-    while (currentMotor1Time < steptime) {
+    // change direction
+    
+    while (currentMotor1Time - oldMotor1Time < steptime) {
       currentMotor1Time = millis();
       currentMotor2Time = millis();
 
