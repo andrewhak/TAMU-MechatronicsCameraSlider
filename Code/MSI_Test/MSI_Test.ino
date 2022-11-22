@@ -54,6 +54,9 @@ unsigned long oLoopTime = 0;
 bool travstate = false;
 bool rotstate = false;
 
+int i = 0;
+int j = 0;
+
 // Interface Stuff
 
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 8, d7 = 7;
@@ -178,10 +181,9 @@ void setup() {
   
   // make sure at initial values
   pEncoder.setOffset(pOffset);
-  
   goToZero();
-  Serial.println(getTrav());
-  Serial.println("Travel Zero'd");
+  Serial.println("Zero'd");
+  Serial.println("Setup Done");
 }
 
 void loop() {
@@ -228,11 +230,11 @@ void loop() {
   }
   Serial.println("Mode selected");
   if (modeSelected == 0) {                                   //Run required mode function depending on selection
-    Serial.println("run free motion");
+    Serial.println("Run free motion");
     FreeMotion ();
   }
   else {
-    Serial.println("run object track");
+    Serial.println("Run object track");
     runTrack ();
   }
 }
@@ -264,14 +266,14 @@ void inputPanAndRotateData(){
           {
             modeSelected = encoderPos;                        //If the button is pressed, accept the current digit into the guessed code
             pressed = true;
-            Serial.println("Button Pushed");
+            //Serial.println("Button Pushed");
           }
           else
           {
             if (pressed == true)                              //Confirm the input once the button is released again
             {
               confirmed = true;
-              Serial.println("Mode confirmed");
+              //Serial.println("Mode confirmed");
             }
           }
         }
@@ -281,27 +283,28 @@ void inputPanAndRotateData(){
         updatePickMenu();
         prevEncoderPos = encoderPos;
       }
-      travPoints[counter] = getTrav(); 
-      panPoints[counter]= getPan();
+      getTrav(); 
+      getPan();
     }
-    Serial.println("Mode selected");
+    //Serial.println("Mode selected");
     if (modeSelected == 0) {                                   //Run required mode function depending on selection
       Serial.println("Picked a Point");
       confirmed = false;
       
       travPoints[counter] = getTrav(); 
       panPoints[counter]= getPan();
-      counter ++;
       pinMode(enablePin, OUTPUT);
       pickedAPoint();
       delay(1000);
       pickTimes(counter);
       pinMode(enablePin, INPUT);
       updatePickMenu();
-      if (counter > 1){
+      
+      if (counter >= 1){
         finishedPicking = true;
         Serial.println("Done Picking");
       }
+      counter ++;
     }
     else {
       Serial.println("Back");
@@ -315,19 +318,19 @@ void inputPanAndRotateData(){
 
 void pickTimes(int i){
   encLowLim = 0;                                            //Mode selection menu, 50 modes
-  encHighLim = 49;
+  encHighLim = 76;
   encIncrement = 1;
 
   boolean confirmed = false;                                //Both used to confirm button push to select mode
   boolean pressed = false;                                  // Used to know when done inputing points
   encoderPos = 0;                                           //Encoder starts from 0, first menu option
-  int timeValue = (encoderPos+1)*10;
+  float timeValue = 1000 + encoderPos * 250;
   updatePickTimeMenu(timeValue);
   int counter = 0;
   while (!confirmed)                                        //While the user has not confirmed the selection
   {
     byte buttonState = digitalRead (encButton);
-    timeValue = (encoderPos+1)*10;
+    timeValue = 1000 + encoderPos * 250;
     if (buttonState != oldButtonState)
     {
       if (millis () - buttonPressTime >= debounceTime)      //Debounce button
@@ -338,14 +341,14 @@ void pickTimes(int i){
         {
           modeSelected = encoderPos;                        //If the button is pressed, accept the current digit into the guessed code
           pressed = true;
-          Serial.println("Button Pushed");
+          //Serial.println("Button Pushed");
         }
         else
         {
           if (pressed == true)                              //Confirm the input once the button is released again
           {
             confirmed = true;
-            Serial.println("Mode confirmed");
+            //Serial.println("Mode confirmed");
           }
         }
       }
@@ -356,11 +359,8 @@ void pickTimes(int i){
       prevEncoderPos = encoderPos;
     }
   }
-  Serial.println("Mode selected");
-  int timeSet = (encoderPos+1) * 10;
-  timePoints[i] = timeSet;
-  Serial.print("Picked Time ");
-  Serial.println(timeSet);
+  timeValue = 1000 + encoderPos * 250;
+  timePoints[i] = timeValue;
   confirmed = false;
   pickedATime();
   delay(1000);
@@ -475,11 +475,11 @@ void updatePickMenu()                               //Updates the display data f
   lcd.print(">");
 }
 
-void updatePickTimeMenu(int timeValue)                               //Updates the display data for the pick menu
+void updatePickTimeMenu(float timeValue)                               //Updates the display data for the pick menu
 {
   lcd.clear();
-  lcd.print("Run Time: ");
-  lcd.print(timeValue);
+  lcd.print("Runtime(s): ");
+  lcd.print(timeValue/1000);
 }
 
 void updateGateMenu()                               //Updates the display data for the pick menu
@@ -514,7 +514,6 @@ void waitForConfirmation() {
   encHighLim = 1;
   encIncrement = 1;
   updateGateMenu();
-
 
   boolean confirmed = false;                                //Both used to confirm button push to select mode
   boolean pressed = false;
@@ -572,8 +571,6 @@ void FreeMotion ()                                       //Runs the pan and rota
     pinMode(enablePin, INPUT);
     inputPanAndRotateData ();                                   //Get user inputs for pan movement
     pinMode(enablePin, OUTPUT);
-    // hardcode time delta as 100
-    //int timeDelta = 100;
     
     float travToSteps = 800; // Rotations per Step, 0.216 Degres per Step
     float panToSteps = 13; // Degrees per Step
@@ -594,20 +591,15 @@ void FreeMotion ()                                       //Runs the pan and rota
         float panCommand = panPoints[i];
         int timeDelta = timePoints[i];
 
+        Serial.print("Trav Command is ");
         Serial.println(travCommand);
+        Serial.print("Pan Command is ");
+        Serial.println(panCommand);
         
         float startTrav = getTrav(); 
         float startPan = getPan();
-        
-        int travSteps = int((travCommand - startTrav)*travToSteps);
-        int panSteps = int((panCommand - startPan)*panToSteps);
   
-        moveMotor(panSteps, travSteps, timeDelta);
-  
-        Serial.print("Steps per Trav Rotate ");
-        Serial.println(travSteps / (getTrav() - startTrav));
-        Serial.print("Steps per Pan Degree");
-        Serial.println(panSteps / (getPan() - startPan));
+        movetospot(panCommand, travCommand, timeDelta);
   
         Serial.print("Trav Error ");
         Serial.println(abs(getTrav() - travCommand));
@@ -628,76 +620,13 @@ void FreeMotion ()                                       //Runs the pan and rota
 
     if (backToMenu == false){
       doneMotion();
-  
       delay(1000);
-  
-      Serial.println("Done Following Path");
     }
 }
 
 void runTrack ()                                                //Runs the object tracking mode sequence
 {
-    pinMode(enablePin, INPUT);
-    inputPanAndRotateData ();                                   //Get user inputs for pan movement
-    pinMode(enablePin, OUTPUT);
-    // hardcode time delta as 100 will fix later
-
-    int timeDelta = 100;
-    float travToSteps = 1600; // Rotations per Step, 0.216 Degres per Step
-    float panToSteps = 13; // Degrees per Step
-
-    if (backToMenu == false){
-      for (int i = 0; i < 2; i = i + 1) {
-        lcd.clear();
-        lcd.setCursor(2, 0);
-        lcd.print("Moving to");
-        lcd.setCursor(2, 1);
-        lcd.print("Point ");
-        lcd.print(i+1);
-        
-        Serial.print("Moving to point ");
-        Serial.println(i+1);
-        
-        float travCommand = travPoints[i];
-        float panCommand = panPoints[i];
-        
-        float startTrav = getTrav(); 
-        float startPan = getPan();
-        
-        int travSteps = int((travCommand - startTrav)*travToSteps);
-        int panSteps = int((panCommand - startPan)*panToSteps);
-        
-        moveMotor(panSteps, travSteps, timeDelta);
-  
-        Serial.print("Steps per Trav Rotate ");
-        Serial.println(travSteps / (getTrav() - startTrav));
-        Serial.print("Steps per Pan Degree");
-        Serial.println(panSteps / (getPan() - startPan));
-  
-        Serial.print("Trav Error ");
-        Serial.println(abs(getTrav() - travCommand));
-        Serial.print("Pan Error ");
-        Serial.println(abs(getPan() - panCommand));
-  
-        Serial.print("At point ");
-        Serial.println(i+1);
-  
-        if (i+1 == 1){
-          waitForConfirmation();
-          if (backToMenu == true){
-            break;
-          }
-        }
-      }
-    }
-
-    if (backToMenu == false){
-      doneMotion();
-  
-      delay(1000);
-  
-      Serial.println("Done Following Path");
-    }
+ // Fill in later
 }
 
 // Motor and Positioning Functions
@@ -715,11 +644,9 @@ void goToZero(){
     unsigned long cTime = millis();
     moveMotor(0, -2, 6);
     if (cTime - oTime >= 50){
-      Serial.println(getTrav());
       oTime = cTime;
     }
   }
-  Serial.println(getTrav());
   moveMotor(0, 100, 50);
   setZero();
 }
@@ -733,33 +660,24 @@ float objTrack(float ang1, float ang2, float pos1, float pos2, float intPos){
   return TargAngle;
 }
 
-void moveMotor(int steps1, int steps2, unsigned long timemilsec) {
-  // put your main code here, to run repeatedly:
+// blindly move motor w/o control
 
+void moveMotor(float steps1, float steps2, float timemilsec) {
+  // put your main code here, to run repeatedly:
   float interval1;
   float interval2;
 
-  unsigned long curint1time;
-  unsigned long offset1;
+  unsigned long offset1 = 0;
+  unsigned long offset2 = 0;
 
-  unsigned long curint2time;
-  unsigned long offset2;
-
-  unsigned long elapTime;
   int curstep1 = 0;
   int curstep2 = 0;
-  int maxsteps;
-
-  int tracker = 0;
-  bool step1state = false;
-  bool step2state = false;
-
 
   if (steps1 < 0) {
-    digitalWrite(rotDirPin, HIGH);
+    digitalWrite(rotDirPin, LOW);
     steps1 = abs(steps1);
   } else {
-    digitalWrite(rotDirPin, LOW);
+    digitalWrite(rotDirPin, HIGH);
   }
   if (steps2 < 0) {
     digitalWrite(travDirPin, HIGH);
@@ -767,57 +685,138 @@ void moveMotor(int steps1, int steps2, unsigned long timemilsec) {
   } else {
     digitalWrite(travDirPin, LOW);
   }
+  interval1 = (timemilsec / steps1);
+  interval2 = (timemilsec / steps2);
 
-  if (steps1 > steps2) {
-    maxsteps = steps1;
-    tracker = curstep1;
 
-  } else {
-    maxsteps = steps2;
-    tracker = curstep2;
-  }
-
-  interval1 = timemilsec / steps1;
-  interval2 = timemilsec / steps2;
-
-  while (!step1state or !step2state) {
-    getTrav(); // keep ecounters counting. FIX THIS ISSUE OTHER WAY!
-    elapTime = millis();
-    curint1time = elapTime - offset1;
-    curint2time = elapTime - offset2;
-    if (curstep1 < steps1) {
-      if (curint1time > (interval1 / 2) and  rotstate == false) {
-        digitalWrite(rotStepPin, HIGH);
-        offset1 = elapTime;
-        curstep1++;
-        rotstate = true;
-      }
-      curint1time = elapTime - offset1;
-      if (curint1time > (interval1 / 2) and rotstate == true ) {
-        digitalWrite(rotStepPin, LOW);
-        offset1 = elapTime;
-        rotstate = false;
-      }
-    } else {
-      step1state = true;
+  while (curstep1 < steps1 or curstep2 < steps2) {
+    unsigned long currentMotor1Time = millis();
+    unsigned long currentMotor2Time = millis();
+    if ((currentMotor1Time - offset1) > (interval1 / 2) and curstep1 / 2 < steps1) {
+      step1();
+      offset1 = currentMotor1Time;
+      curstep1++;
     }
 
-    if (curstep2 < steps2) {
-      if (curint2time > (interval2 / 2) and  travstate == false) {
-        digitalWrite(travStepPin, HIGH);
-        offset2 = elapTime;
-        curstep2++;
-        travstate = true;
+    if ((currentMotor2Time - offset2) > (interval2 / 2) and curstep2 / 2 < steps2) {
+      step2();
+      offset2 = currentMotor2Time;
+      curstep2++;
 
-      }
-      curint2time = elapTime - offset2;
-      if (curint2time > (interval2 / 2) and travstate == true ) {
-        digitalWrite(travStepPin, LOW);
-        offset2 = elapTime;
-        travstate = false;
-      }
+    }
+
+  }
+
+}
+
+void step1() {
+  if (i == 0) {
+    digitalWrite(rotStepPin, HIGH);
+    i = i + 1;
+  } else {
+    digitalWrite(rotStepPin, LOW);
+    i = i - 1;
+  }
+}
+
+void step2() {
+  if (j == 0) {
+    digitalWrite(travStepPin, HIGH);
+    j = j + 1;
+  } else {
+    digitalWrite(travStepPin, LOW);
+    j = j - 1;
+  }
+}
+
+// move to a spot with control
+
+void movetospot(float targetRot, float targetPos, unsigned long Time) {
+
+  double currentPos, currentRot, rotError, posError;
+  int rotStep, posStep;
+
+  float steptime = 50;
+  float travRotPerStep = 0.0006 * 2;
+  float rotDegPerStep = 0.07 * 2;
+  double kpr = .5;
+  double kpp = 3;
+  double kir = 0;
+  double kip = 0;
+  unsigned long previousTime;
+  unsigned long elapsedTime;
+  unsigned long currentTime;
+  double rotcumError, poscumError, rotOut, posOut;
+
+  rotError = targetRot - currentRot;
+  posError = targetPos - currentPos;
+
+  while (abs(rotError) >= 1 or abs(posError) >= .5) {
+    currentTime = millis();
+    elapsedTime = (double)(currentTime - previousTime);
+    //Serial.println(elapsedTime);
+
+    currentRot = getPan();
+    currentPos = getTrav();
+
+    rotError = targetRot - currentRot;
+    posError = targetPos - currentPos;
+
+    rotcumError += rotError * elapsedTime;
+    poscumError += posError * elapsedTime;
+
+    rotOut = (kir * rotcumError) + (kpr * rotError);
+    posOut = (kip * poscumError) + (kpp * posError);
+    
+    //Serial.println(rotOut);
+    //Serial.println(posOut);
+    //    Serial.println(abs(rotError));
+    //    Serial.println(abs(posError));
+
+    rotStep = int(rotOut * 13);
+    posStep = int(posOut * 1600);
+
+    if (rotStep < 0) {
+      digitalWrite(rotDirPin, LOW);
+      rotStep = abs(rotStep);
     } else {
-      step2state = true;
+      digitalWrite(rotDirPin, HIGH);
+    }
+
+    if (posStep < 0) {
+      digitalWrite(travDirPin, HIGH);
+      posStep = abs(posStep);
+    } else {
+      digitalWrite(travDirPin, LOW);
+    }
+
+    float interval1;
+    float interval2;
+    unsigned long currentMotor1Time = 0;
+    unsigned long currentMotor2Time = 0;
+
+    interval1 = (Time / (rotStep) );
+    interval2 = (Time / (posStep) );
+
+    unsigned long offset1;
+    unsigned long offset2;
+
+    // change direction
+
+    previousTime = currentTime;
+    while (currentMotor1Time < steptime) {
+      currentMotor1Time = millis();
+      currentMotor2Time = millis();
+
+      if ((currentMotor1Time - offset1) > (interval1 / 2)) {
+        step1();
+        offset1 = currentMotor1Time;
+      }
+
+      if ((currentMotor2Time - offset2) > (interval2 / 2)) {
+        step2();
+        offset2 = currentMotor2Time;
+      }
     }
   }
 }
