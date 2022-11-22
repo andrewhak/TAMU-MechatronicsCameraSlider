@@ -37,6 +37,7 @@ float initTOffset = 0;
 
 volatile float travPoints[2];
 volatile float panPoints[2];
+volatile float timePoints[2];
 
 unsigned long oTime = 0;
 unsigned long oLoopTime = 0;
@@ -291,11 +292,12 @@ void inputPanAndRotateData(){
       travPoints[counter] = getTrav(); 
       panPoints[counter]= getPan();
       counter ++;
-
+      pinMode(enablePin, OUTPUT);
       pickedAPoint();
       delay(1000);
+      pickTimes(counter);
+      pinMode(enablePin, INPUT);
       updatePickMenu();
-            
       if (counter > 1){
         finishedPicking = true;
         Serial.println("Done Picking");
@@ -311,19 +313,21 @@ void inputPanAndRotateData(){
   }
 }
 
-void pickTimes(){
-  encLowLim = 0;                                            //Mode selection menu, 49 modes
+void pickTimes(int i){
+  encLowLim = 0;                                            //Mode selection menu, 50 modes
   encHighLim = 49;
   encIncrement = 1;
-  updatePickTimeMenu();
 
   boolean confirmed = false;                                //Both used to confirm button push to select mode
   boolean pressed = false;                                  // Used to know when done inputing points
   encoderPos = 0;                                           //Encoder starts from 0, first menu option
+  int timeValue = (encoderPos+1)*10;
+  updatePickTimeMenu(timeValue);
   int counter = 0;
   while (!confirmed)                                        //While the user has not confirmed the selection
   {
     byte buttonState = digitalRead (encButton);
+    timeValue = (encoderPos+1)*10;
     if (buttonState != oldButtonState)
     {
       if (millis () - buttonPressTime >= debounceTime)      //Debounce button
@@ -348,19 +352,19 @@ void pickTimes(){
     }
     if (encoderPos != prevEncoderPos)                       //Update the display if the encoder position has changed
     {
-      updatePickTimeMenu();
+      updatePickTimeMenu(timeValue);
       prevEncoderPos = encoderPos;
     }
-    travPoints[counter] = getTrav(); 
-    panPoints[counter]= getPan();
   }
   Serial.println("Mode selected");
-  int timeSet = encoderPos * 10;
+  int timeSet = (encoderPos+1) * 10;
+  timePoints[i] = timeSet;
   Serial.print("Picked Time ");
   Serial.println(timeSet);
   confirmed = false;
   pickedATime();
   delay(1000);
+  encoderPos = 0;
 }
 
 void PinA()                                             //Rotary encoder interrupt service routine for one encoder pin
@@ -471,20 +475,11 @@ void updatePickMenu()                               //Updates the display data f
   lcd.print(">");
 }
 
-void updatePickTimeMenu()                               //Updates the display data for the pick menu
+void updatePickTimeMenu(int timeValue)                               //Updates the display data for the pick menu
 {
   lcd.clear();
-  lcd.setCursor(2, 0);
   lcd.print("Run Time: ");
-  lcd.print(encoderPos*10);
-
-  int selected = 0;                                 //Stores cursor vertical position to show selected item
-  if (encoderPos == 0)
-    selected = 0;
-  else
-    selected = 1;
-  lcd.setCursor(0, encoderPos);                   //Set the display cursor position
-  lcd.print(">");
+  lcd.print(timeValue);
 }
 
 void updateGateMenu()                               //Updates the display data for the pick menu
@@ -578,9 +573,9 @@ void FreeMotion ()                                       //Runs the pan and rota
     inputPanAndRotateData ();                                   //Get user inputs for pan movement
     pinMode(enablePin, OUTPUT);
     // hardcode time delta as 100
-
-    int timeDelta = 100;
-    float travToSteps = 1600; // Rotations per Step, 0.216 Degres per Step
+    //int timeDelta = 100;
+    
+    float travToSteps = 800; // Rotations per Step, 0.216 Degres per Step
     float panToSteps = 13; // Degrees per Step
 
     if (backToMenu == false){
@@ -597,6 +592,9 @@ void FreeMotion ()                                       //Runs the pan and rota
         
         float travCommand = travPoints[i];
         float panCommand = panPoints[i];
+        int timeDelta = timePoints[i];
+
+        Serial.println(travCommand);
         
         float startTrav = getTrav(); 
         float startPan = getPan();
