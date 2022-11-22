@@ -155,74 +155,132 @@ void setup() {
 }
 
 void loop() {
-  float ang1 = 15;
-  float ang2 = 60;
+  float ang1 = 45;
+  float ang2 = 135;
   float pos1 = 1;
-  float pos2 = 3; 
-  float intPos = 10;
-  float timer = 10;
+  float pos2 = 5; 
+  float targPos = 0;
+  float timer = 100;
   float currentAng = getPan();
-  if (currentAng < ang1){
-    while (currentAng < ang1){
-      moveMotor(-200,0,10000);
-      currentAng = getPan();
-      Serial.print("SetUP");        
-    }
-  }
-  else if(currentAng > ang1){
-    while (currentAng > ang1){
-      moveMotor(200,0,10000);
-      currentAng = getPan();
-      Serial.print("SetUP");    
-    }
-  }
   float currentPos = getTrav();
-  if (currentPos < pos1){
-    while (currentPos < pos1){
-      moveMotor(0,1000,10000);
-      currentPos = getTrav();
-      Serial.print("SetUP");        
-    }
-  }
-  float targAngle = objTrack(ang1,ang2,pos1,pos2,intPos);
-  float len_ang = targAngle-ang1; 
   float len = pos2-pos1;
+  float int_length = len/10 ;
+  movetospot(ang1,pos1,1000);
+  Serial.print("Initial Spot");
+  Serial.println();
   boolean confirmed = false;                                //Both used to confirm button push to select mode
   boolean pressed = false;
-  encoderPos = 0;      
-  while (!confirmed)                                        //While the user has not confirmed the selection
+  encoderPos = 0;  
+  boolean forward = true;
+  while (confirmed == false)                                       //While the user has not confirmed the selection
   {
-    moveMotor(len_ang/0.07,len/0.0006,timer);
-    Serial.print("Next MOVE");
-    moveMotor(-len_ang/0.07,-len/0.0006,timer);
-    byte buttonState = digitalRead (encButton);
-    if (buttonState != oldButtonState)
-    {
-      if (millis () - buttonPressTime >= debounceTime)      //Debounce button
-      {
-        buttonPressTime = millis ();                        //Time when button was pushed
-        oldButtonState =  buttonState;                      //Remember button state for next time
-        if (buttonState == LOW)
-        {
-          pressed = true;
-          Serial.println("Button Pushed");
-        }
-        else
-        {
-          if (pressed == true)                              //Confirm the input once the button is released again
-          {
-            confirmed = true;
-            Serial.println("STOP");
-          }
-        }
+    currentAng = getPan();
+    currentPos = getTrav();
+    Serial.print("Loop Begin");
+    Serial.println();
+    Serial.print(currentPos);
+    Serial.println();
+    Serial.print(forward);
+    while (forward == true){
+      Serial.print("Forward");
+      Serial.println();
+      currentAng = getPan();
+      currentPos = getTrav();
+      Serial.print("Angle: ");
+      Serial.print(currentAng);
+      Serial.print("    Distance: ");
+      Serial.print(currentPos);
+      Serial.println();
+      targPos = targPos + int_length;
+      float targAngle = objTrack(ang1*3.14/180,ang2*3.14/180,pos1,pos2,targPos)*180/3.14;    
+      movetospot(targAngle,targPos,100);
+      currentPos = getTrav();
+      if (currentPos >= pos2 or currentAng >= ang2){
+        forward = false;
       }
     }
-    if (encoderPos != prevEncoderPos)                       //Update the display if the encoder position has changed
-    {
-      break;
-      prevEncoderPos = encoderPos;
+    while (forward == false){
+      Serial.print("Reverse");
+      Serial.println();
+      currentAng = getPan();
+      currentPos = getTrav();
+      Serial.print("Angle: ");
+      Serial.print(currentAng);
+      Serial.print("    Distance: ");
+      Serial.print(currentPos);
+      Serial.println();
+      targPos = targPos - int_length;
+      float targAngle = objTrack(ang1*3.14/180,ang2*3.14/180,pos1,pos2,targPos)*180/3.14;    
+      movetospot(targAngle,targPos,10);
+      currentPos = getTrav();
+      if (currentPos <= pos1 or currentAng <= ang1){
+        forward = true;
+      }
     }
   }
+//  if (currentAng < ang1){
+//    while (currentAng < ang1){
+//      moveMotor(-200,0,10000);
+//      currentAng = getPan();
+//      Serial.print("SetUP");
+//      Serial.println();        
+//    }
+//  }
+//  else if(currentAng > ang1){
+//    while (currentAng > ang1){
+//      moveMotor(200,0,10000);
+//      currentAng = getPan();
+//      Serial.print("SetUP");
+//      Serial.println();    
+//    }
+//  }
+//  float currentPos = getTrav();
+//  if (currentPos < pos1){
+//    while (currentPos < pos1){
+//      moveMotor(0,1000,10000);
+//      currentPos = getTrav();
+//      Serial.print("SetUP");        
+//    }
+//  }
+//  float targAngle = objTrack(ang1,ang2,pos1,pos2,intPos);
+//  float len_ang = targAngle-ang1; 
+//  float len = pos2-pos1;
+//  boolean confirmed = false;                                //Both used to confirm button push to select mode
+//  boolean pressed = false;
+//  encoderPos = 0;      
+//  while (!confirmed)                                        //While the user has not confirmed the selection
+//  {
+//    moveMotor(len_ang/0.07,len/0.0006,timer);
+//    Serial.print("Next MOVE");
+//    moveMotor(-len_ang/0.07,-len/0.0006,timer);
+//    byte buttonState = digitalRead (encButton);
+//    if (buttonState != oldButtonState)
+//    {
+//      if (millis () - buttonPressTime >= debounceTime)      //Debounce button
+//      {
+//        buttonPressTime = millis ();                        //Time when button was pushed
+//        oldButtonState =  buttonState;                      //Remember button state for next time
+//        if (buttonState == LOW)
+//        {
+//          pressed = true;
+//          Serial.println("Button Pushed");
+//        }
+//        else
+//        {
+//          if (pressed == true)                              //Confirm the input once the button is released again
+//          {
+//            confirmed = true;
+//            Serial.println("STOP");
+//          }
+//        }
+//      }
+//    }
+//    if (encoderPos != prevEncoderPos)                       //Update the display if the encoder position has changed
+//    {
+//      break;
+//      prevEncoderPos = encoderPos;
+//    }
+//  }
 }
 
 float objTrack(float ang1, float ang2, float pos1, float pos2, float intPos){
@@ -440,4 +498,102 @@ void PinB()                                             //Rotary encoder interru
   else if (reading == B00100000)                        //Signal that we're expecting pinA to signal the transition to detent from free rotation
     aFlag = 1;
   sei();                                                //Restart interrupts
+}
+
+void movetospot(float targetRot, float targetPos, unsigned long Time) {
+
+  double currentPos, currentRot, rotError, posError;
+  int rotStep, posStep;
+
+  float steptime = 50;
+  float travRotPerStep = 0.0006 * 2;
+  float rotDegPerStep = 0.07 * 2;
+  double kpr = .15;
+  double kpp = 10;
+  double kir = 0;
+  double kip = 0;
+  unsigned long previousTime;
+  unsigned long elapsedTime;
+  unsigned long currentTime;
+  double rotcumError, poscumError, rotOut, posOut;
+
+  rotError = targetRot - currentRot;
+  posError = targetPos - currentPos;
+
+  while (abs(rotError) >= 1 or abs(posError) >= .5) {
+    currentTime = millis();
+    elapsedTime = (double)(currentTime - previousTime);
+//    Serial.println(elapsedTime);
+
+    currentRot = getPan();
+    currentPos = getTrav();
+
+    rotError = targetRot - currentRot;
+    posError = targetPos - currentPos;
+
+    rotcumError += rotError * elapsedTime;
+    poscumError += posError * elapsedTime;
+
+    rotOut = (kir * rotcumError) + (kpr * rotError);
+    posOut = (kip * poscumError) + (kpp * posError);
+//    Serial.println(rotOut);
+//    Serial.println(posOut);
+    //    Serial.println(abs(rotError));
+    //    Serial.println(abs(posError));
+
+    rotStep = int(rotOut * 13);
+    posStep = int(posOut * 1600);
+
+    if (rotStep < 0) {
+      digitalWrite(rotDirPin, LOW);
+      rotStep = abs(rotStep);
+    } else {
+      digitalWrite(rotDirPin, HIGH);
+    }
+
+    if (posStep < 0) {
+      digitalWrite(travDirPin, HIGH);
+      posStep = abs(posStep);
+    } else {
+      digitalWrite(travDirPin, LOW);
+    }
+
+
+
+
+    float interval1;
+    float interval2;
+    unsigned long currentMotor1Time = 0;
+    unsigned long currentMotor2Time = 0;
+
+    interval1 = (Time / (rotStep) );
+    interval2 = (Time / (posStep) );
+
+    unsigned long offset1;
+    unsigned long offset2;
+
+    // change direction
+
+    previousTime = currentTime;
+    while (currentMotor1Time < steptime) {
+      currentRot = getPan();
+      currentPos = getTrav();
+      currentMotor1Time = millis();
+      currentMotor2Time = millis();
+
+      if ((currentMotor1Time - offset1) > (interval1 / 2)) {
+        step1();
+        offset1 = currentMotor1Time;
+      }
+
+      if ((currentMotor2Time - offset2) > (interval2 / 2)) {
+        step2();
+        offset2 = currentMotor2Time;
+      }
+
+    }
+
+  }
+
+
 }
