@@ -35,9 +35,11 @@ volatile float travO = 0; // Old Value of the Traverse Encoder
 volatile float vel = 0;
 float initTOffset = 0;
 
-volatile float travPoints[2];
-volatile float panPoints[2];
-volatile float timePoints[2];
+volatile float travPoints[9];
+volatile float panPoints[9];
+volatile float timePoints[9];
+
+volatile int numPoints;
 
 unsigned long oTime = 0;
 unsigned long oLoopTime = 0;
@@ -245,13 +247,15 @@ void inputPanAndRotateData(){
   encLowLim = 0;                                            //Mode selection menu, 2 modes
   encHighLim = 1;
   encIncrement = 1;
-  updatePickMenu();
+  int counter = 0;
+
+  updatePickMenu(counter+1);
 
   boolean confirmed = false;                                //Both used to confirm button push to select mode
   boolean pressed = false;
   boolean finishedPicking = false;                          // Used to know when done inputing points
   encoderPos = 0;                                           //Encoder starts from 0, first menu option
-  int counter = 0;
+
   while (!finishedPicking){
     while (!confirmed)                                        //While the user has not confirmed the selection
     {
@@ -280,7 +284,8 @@ void inputPanAndRotateData(){
       }
       if (encoderPos != prevEncoderPos)                       //Update the display if the encoder position has changed
       {
-        updatePickMenu();
+
+        updatePickMenu(counter+1);
         prevEncoderPos = encoderPos;
       }
       getTrav(); 
@@ -296,15 +301,18 @@ void inputPanAndRotateData(){
       pinMode(enablePin, OUTPUT);
       pickedAPoint();
       delay(1000);
-      pickTimes(counter);
-      pinMode(enablePin, INPUT);
-      updatePickMenu();
       
-      if (counter >= 1){
+      pickTimes(counter);
+      
+      pinMode(enablePin, INPUT);
+      
+      if (counter >= numPoints-1){
         finishedPicking = true;
         Serial.println("Done Picking");
       }
       counter ++;
+
+      updatePickMenu(counter+1);
     }
     else {
       Serial.println("Back");
@@ -326,7 +334,6 @@ void pickTimes(int i){
   encoderPos = 0;                                           //Encoder starts from 0, first menu option
   float timeValue = 1000 + encoderPos * 250;
   updatePickTimeMenu(timeValue);
-  int counter = 0;
   while (!confirmed)                                        //While the user has not confirmed the selection
   {
     byte buttonState = digitalRead (encButton);
@@ -365,6 +372,57 @@ void pickTimes(int i){
   pickedATime();
   delay(1000);
   encoderPos = 0;
+}
+
+void pickNumPoints(){
+  encLowLim = 0;                                            //Mode selection menu, 50 modes
+  encHighLim = 8;
+  encIncrement = 1;
+
+  boolean confirmed = false;                                //Both used to confirm button push to select mode
+  boolean pressed = false;                                  // Used to know when done inputing points
+  encoderPos = 0;                                           //Encoder starts from 0, first menu option
+  numPoints = encoderPos+2;
+  updatePickNumMenu(numPoints);
+  while (!confirmed)                                        //While the user has not confirmed the selection
+  {
+    byte buttonState = digitalRead (encButton);
+    numPoints = encoderPos+2;
+    if (buttonState != oldButtonState)
+    {
+      if (millis () - buttonPressTime >= debounceTime)      //Debounce button
+      {
+        buttonPressTime = millis ();                        //Time when button was pushed
+        oldButtonState =  buttonState;                      //Remember button state for next time
+        if (buttonState == LOW)
+        {
+          modeSelected = encoderPos;                        //If the button is pressed, accept the current digit into the guessed code
+          pressed = true;
+          //Serial.println("Button Pushed");
+        }
+        else
+        {
+          if (pressed == true)                              //Confirm the input once the button is released again
+          {
+            confirmed = true;
+            //Serial.println("Mode confirmed");
+          }
+        }
+      }
+    }
+    if (encoderPos != prevEncoderPos)                       //Update the display if the encoder position has changed
+    {
+      updatePickNumMenu(numPoints);
+      prevEncoderPos = encoderPos;
+    }
+  }
+  numPoints = encoderPos+2;
+  confirmed = false;
+  pickedNumPoints();
+  delay(1000);
+  encoderPos = 0;
+
+  Serial.println(numPoints);
 }
 
 void PinA()                                             //Rotary encoder interrupt service routine for one encoder pin
@@ -425,19 +483,22 @@ void backToMain()                               //Display while returning to Mai
 void pickedAPoint()                               //Display after picking a point
 {
   lcd.clear();
-  lcd.setCursor(2, 0);
   lcd.print("Picked a Point");
-  lcd.setCursor(2, 1);
-  lcd.print("");
 }
 
 void pickedATime()                               //Display after picking a time
 {
   lcd.clear();
-  lcd.setCursor(2, 0);
   lcd.print("Picked a Time");
-  lcd.setCursor(2, 1);
-  lcd.print("");
+}
+
+void pickedNumPoints()                               //Display after picking number of points
+{
+  lcd.clear();
+  lcd.setCursor(1, 0);
+  lcd.print("Picked Num");
+  lcd.setCursor(1, 1);
+  lcd.print("Points");
 }
 
 void updateMainMenu()                               //Updates the display data for the main menu
@@ -458,11 +519,14 @@ void updateMainMenu()                               //Updates the display data f
 }
 
 
-void updatePickMenu()                               //Updates the display data for the pick menu
+void updatePickMenu(int i)                               //Updates the display data for the pick menu
 {
   lcd.clear();
   lcd.setCursor(2, 0);
-  lcd.print("Input Position");
+  lcd.print("Pick Pos ");
+  lcd.print(i);
+  lcd.print("/");
+  lcd.print(numPoints);
   lcd.setCursor(2, 1);
   lcd.print("Main Menu");
 
@@ -475,11 +539,18 @@ void updatePickMenu()                               //Updates the display data f
   lcd.print(">");
 }
 
-void updatePickTimeMenu(float timeValue)                               //Updates the display data for the pick menu
+void updatePickTimeMenu(float timeValue)                               //Updates the display data for the pick time menu
 {
   lcd.clear();
   lcd.print("Runtime(s): ");
   lcd.print(timeValue/1000);
+}
+
+void updatePickNumMenu(float numPointsPicked)                               //Updates the display data for the pick shots menu
+{
+  lcd.clear();
+  lcd.print("Num Points: ");
+  lcd.print(numPointsPicked);
 }
 
 void updateGateMenu()                               //Updates the display data for the pick menu
@@ -502,10 +573,7 @@ void updateGateMenu()                               //Updates the display data f
 void doneMotion()                               //Updates the display data when motion is done
 {
   lcd.clear();
-  lcd.setCursor(2, 0);
   lcd.print("Done Moving");
-  lcd.setCursor(2, 1);
-  lcd.print(" ");
 }      
 
 
@@ -569,14 +637,15 @@ void waitForConfirmation() {
 void FreeMotion ()                                       //Runs the pan and rotate mode sequence
 {
     pinMode(enablePin, INPUT);
-    inputPanAndRotateData ();                                   //Get user inputs for pan movement
+    pickNumPoints();
+    inputPanAndRotateData();                                   //Get user inputs for pan movement
     pinMode(enablePin, OUTPUT);
     
     float travToSteps = 800; // Rotations per Step, 0.216 Degres per Step
     float panToSteps = 13; // Degrees per Step
 
     if (backToMenu == false){
-      for (int i = 0; i < 2; i = i + 1) {
+      for (int i = 0; i < numPoints; i = i + 1) {
         lcd.clear();
         lcd.setCursor(2, 0);
         lcd.print("Moving to");
@@ -731,7 +800,7 @@ void step2() {
 
 // move to a spot with control
 
-void movetospot(float targetRot, float targetPos, unsigned long Time) {
+void movetospot(float endRot, float endPos, unsigned long Time) {
 
   double currentPos, currentRot, rotError1, posError1, rotError2, posError2;
   int rotStep, posStep;
@@ -739,26 +808,45 @@ void movetospot(float targetRot, float targetPos, unsigned long Time) {
   float steptime = 150;
   float travRotPerStep = (1/1600) * 2;
   float rotDegPerStep = (1/13) * 2;
-  double kpr = 0.5;
+  float targetPos, targetRot;
+  double kpr = 3;
   double kpp = 3;
   double kir = 0.0;
   double kip = 0.0;
-  double kdr = 0.5;
-  double kdp = 3;
+  double kdr = 2;
+  double kdp = 2;
   unsigned long previousTime;
   unsigned long elapsedTime;
   unsigned long currentTime;
   double rotcumError, poscumError, rotDeltaError, posDeltaError, rotOut, posOut;
 
-  rotError2 = 0;
-  posError2 = 0;
-  
-  rotError1 = targetRot - currentRot;
-  posError1 = targetPos - currentPos;
+  float startRot = getPan();
+  float startPos = getTrav();
+  float startTime = millis();
 
-  while (abs(rotError1) >= 0.5 or abs(posError1) >= .5/360) {
+  currentRot = startRot;
+  currentPos = startPos;
+  
+  //targetRot = currentRot 
+  //targetPos = 
+  
+  //rotError2 = 0;
+  //posError2 = 0;
+  
+  //rotError1 = targetRot - currentRot;
+  //posError1 = targetPos - currentPos;
+
+  while (abs(endRot - currentRot) >= 0.5 or abs(endPos - currentPos) >= .5/360) {
     currentTime = millis();
     elapsedTime = (double)(currentTime - previousTime);
+
+    if (currentTime - startTime <= Time){
+      targetPos = startPos + ((currentTime-startTime)/Time) * (endPos - startPos);
+      targetRot = startRot + ((currentTime-startTime)/Time) * (endRot - startRot);
+    } else{
+      targetPos = endPos;
+      targetRot = endRot;
+    }
 
     currentRot = getPan();
     currentPos = getTrav();
