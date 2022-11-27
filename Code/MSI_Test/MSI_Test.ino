@@ -840,16 +840,17 @@ void movetospot(float endRot, float endPos, unsigned long Time) {
     currentTime = millis();
     elapsedTime = (double)(currentTime - previousTime);
 
-    if (currentTime - startTime <= Time){
-      targetPos = startPos + ((currentTime-startTime)/Time) * (endPos - startPos);
-      targetRot = startRot + ((currentTime-startTime)/Time) * (endRot - startRot);
-    } else{
-      targetPos = endPos;
-      targetRot = endRot;
-    }
-
     currentRot = getPan();
     currentPos = getTrav();
+
+    if (currentTime - startTime <= Time){
+      targetPos = startPos + ((currentTime-startTime)/Time) * (endPos - startPos);
+    } else{
+      targetPos = endPos;
+    }
+    float percTravDone = (currentPos-startPos)/(endPos-startPos);
+    Serial.println(percTravDone);
+    targetRot = startRot + (endRot - startRot)*percTravDone;
 
     rotError1 = targetRot - currentRot;
     posError1 = targetPos - currentPos;
