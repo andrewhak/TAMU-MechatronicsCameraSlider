@@ -109,12 +109,6 @@ void setup() {
 
   setupMenu();
 
-  //  lcd.clear();
-  //  lcd.setCursor(2, 0);
-  //  lcd.print("Free Motion");
-  //  lcd.setCursor(2, 1);
-  //  lcd.print("Object Track");
-
   Serial.println("LCD Setup Complete");                       //Write to serial monitor to indicate the setup function is complete
 
   
@@ -675,7 +669,7 @@ void Motion ()                                       //Runs the pan and rotate m
         float startPan = getPan();
 
         if (runTrack){
-          movetospot(panCommand, travCommand, timeDelta); // run object tracking version of move code      
+          movetrack(panCommand, travCommand, timeDelta); // run object tracking version of move code      
         } else{
           movetospot(panCommand, travCommand, timeDelta); // run free motion version of move code
         }
@@ -849,8 +843,8 @@ void movetospot(float endRot, float endPos, unsigned long Time) {
   currentRot = startRot;
   currentPos = startPos;
 
-  float RotSteps = (endRot - startRot) * rotStepPerDeg;
-  float TravSteps = (endPos - startPos) * travStepPerRot;
+  float RotSteps = abs((endRot - startRot) * rotStepPerDeg);
+  float TravSteps = abs((endPos - startPos) * travStepPerRot);
 
   Serial.print("RotSteps ");
   Serial.println(RotSteps);
@@ -910,6 +904,145 @@ void movetospot(float endRot, float endPos, unsigned long Time) {
       lastPercDone = percDone;
     }
 
+
+    rotError1 = targetRot - currentRot;
+    posError1 = targetPos - currentPos;
+
+    rotcumError += rotError1;
+    poscumError += posError1;
+
+    rotDeltaError = (rotError1 - rotError2) / elapsedTime;
+    posDeltaError = (posError1 - posError2) / elapsedTime;
+
+    rotOut = (kir * rotcumError) + (kpr * rotError1) + (kdr * rotDeltaError);
+    posOut = (kip * poscumError) + (kpp * posError1) + (kdp * posDeltaError);
+
+    rotStep = int(rotOut * 13);
+    posStep = int(posOut * 1600);
+
+    previousTime = currentTime;
+    
+    if (rotStep < 0) {
+      digitalWrite(rotDirPin, LOW);
+      rotStep = abs(rotStep);
+    } else {
+      digitalWrite(rotDirPin, HIGH);
+    }
+
+    if (posStep < 0) {
+      digitalWrite(travDirPin, HIGH);
+      posStep = abs(posStep);
+    } else {
+      digitalWrite(travDirPin, LOW);
+    }
+
+    float interval1;
+    float interval2;
+    unsigned long oldMotor1Time = millis();
+    unsigned long oldMotor2Time = millis();
+    unsigned long currentMotor1Time = millis();
+    unsigned long currentMotor2Time = millis();
+
+    interval1 = (Time / (rotStep) );
+    interval2 = (Time / (posStep) );
+
+    unsigned long offset1;
+    unsigned long offset2;
+
+    rotError2 = rotError1;
+    posError2 = posError2;
+
+    // change direction
+    
+    while (currentMotor1Time - oldMotor1Time < steptime) {
+      currentMotor1Time = millis();
+      currentMotor2Time = millis();
+
+      if ((currentMotor1Time - offset1) > (interval1 / 2)) {
+        step1();
+        offset1 = currentMotor1Time;
+      }
+
+      if ((currentMotor2Time - offset2) > (interval2 / 2)) {
+        step2();
+        offset2 = currentMotor2Time;
+      }
+    }
+  }
+}
+
+// move to a spot with control while tracking an object
+
+void movetrack(float endRot, float endPos, unsigned long Time) {
+
+  double currentPos, currentRot, rotError1, posError1, rotError2, posError2;
+  int rotStep, posStep;
+
+  float steptime = 150;
+  float travRotPerStep = (1/1600) * 2;
+  float travStepPerRot = 800;
+  float rotDegPerStep = (1/13) * 2;
+  float rotStepPerDeg = 13/2;
+  float targetPos, targetRot;
+  double kpr = 3;
+  double kpp = 3;
+  double kir = 0.0;
+  double kip = 0.0;
+  double kdr = 2;
+  double kdp = 2;
+  unsigned long previousTime;
+  unsigned long elapsedTime;
+  unsigned long currentTime;
+  double rotcumError, poscumError, rotDeltaError, posDeltaError, rotOut, posOut;
+
+  float startRot = getPan();
+  float startPos = getTrav();
+  float startTime = millis();
+
+  float lastPercDone = 0;
+  float percDone = 0;
+
+  bool travSlower = false;
+
+  currentRot = startRot;
+  currentPos = startPos;
+
+  float RotSteps = abs((endRot - startRot) * rotStepPerDeg);
+  float TravSteps = abs((endPos - startPos) * travStepPerRot);
+
+  Serial.print("RotSteps ");
+  Serial.println(RotSteps);
+  Serial.print("TravSteps ");
+  Serial.println(TravSteps);
+
+  while (abs(endRot - currentRot) >= 0.5 or abs(endPos - currentPos) >= .5/360) {
+    currentTime = millis();
+    elapsedTime = (double)(currentTime - previousTime);
+
+    currentRot = getPan();
+    currentPos = getTrav();
+
+    float travPerc = (currentPos-startPos)/(endPos-startPos);
+
+    if (currentTime - startTime <= Time){
+      targetPos = startPos + ((currentTime-startTime)/Time) * (endPos - startPos);       
+    } else{
+      targetPos = endPos;       
+    }
+    
+    percDone = (currentPos-startPos)/(endPos-startPos);
+    
+    float percToGo = percDone + (percDone - lastPercDone);
+    if (percToGo > 1){
+      percToGo = 1;
+    }
+    Serial.println(percToGo);
+
+    float trackAngle = objTrack(startRot, endRot, startPos, endPos, percToGo*(endPos-startPos)+startPos);
+    
+    targetRot = trackAngle;
+    
+    lastPercDone = percDone;
 
     rotError1 = targetRot - currentRot;
     posError1 = targetPos - currentPos;
