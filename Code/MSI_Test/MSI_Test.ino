@@ -725,13 +725,23 @@ void goToZero(){
   setZero();
 }
 
-float objTrack(float ang1, float ang2, float pos1, float pos2, float intPos){
-  float angToMove = ang2-ang1;
-  float len = pos2-pos1;
-  float x1 = -len / (tan(ang1)*(cos(ang2)/sin(ang2))-1); // cotan is cos on sin
-  float y1 =  len / ( cos(ang1)/sin(ang1) - cos(ang2)/sin(ang2));
-  float TargAngle = atan(y1 / (x1-intPos));
-  return TargAngle;
+float objTrack(float ang1, float ang2, float pos1, float pos2, float intPos) {
+  ang1 = radians(ang1);
+  ang2 = radians(ang2);
+  float len = pos2 - pos1;
+  float x1 = -len / (tan(ang1) * (cos(ang2) / sin(ang2)) - 1); // cotan is cos on sin
+  float y1 =  len / ( cos(ang1) / sin(ang1) - cos(ang2) / sin(ang2));
+  float TargAngle = degrees(atan(y1 / (x1 - intPos)));
+  float result;
+  Serial.println(TargAngle);
+  if (TargAngle < 0 and 0 < ang1) {
+    result = TargAngle + 180;
+  } else if (TargAngle > 0 and 0 > ang1) {
+    result = TargAngle - 180;
+  } else {
+    result = TargAngle;
+  }
+  return result;
 }
 
 // blindly move motor w/o control
