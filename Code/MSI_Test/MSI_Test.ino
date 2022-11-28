@@ -30,6 +30,8 @@ volatile float panRots = 0; // Number of times panned around clockwise
 volatile bool clockWise = true; // Whether pan is in negative or positive angles
 float pOffset = -117.6;
 
+volatile bool runTrack = false; // Whether to enable object tracking or not
+
 volatile int travRots = 0; // Number of times travel encoder has rotated 360 degrees
 volatile float travO = 0; // Old Value of the Traverse Encoder
 volatile float vel = 0;
@@ -232,12 +234,16 @@ void loop() {
   }
   Serial.println("Mode selected");
   if (modeSelected == 0) {                                   //Run required mode function depending on selection
-    Serial.println("Run free motion");
-    FreeMotion ();
+    runTrack = false;
+    Serial.print(runTrack);
+    Serial.println(". Run free motion");
+    Motion();
   }
   else {
-    Serial.println("Run object track");
-    runTrack ();
+    runTrack = true;
+    Serial.print(runTrack);
+    Serial.println(". Run object track");
+    Motion();
   }
 }
 
@@ -634,7 +640,7 @@ void waitForConfirmation() {
   }
 }
 
-void FreeMotion ()                                       //Runs the pan and rotate mode sequence
+void Motion ()                                       //Runs the pan and rotate mode sequence
 {
     pinMode(enablePin, INPUT);
     pickNumPoints();
@@ -667,8 +673,12 @@ void FreeMotion ()                                       //Runs the pan and rota
         
         float startTrav = getTrav(); 
         float startPan = getPan();
-  
-        movetospot(panCommand, travCommand, timeDelta);
+
+        if (runTrack){
+          movetospot(panCommand, travCommand, timeDelta); // run object tracking version of move code      
+        } else{
+          movetospot(panCommand, travCommand, timeDelta); // run free motion version of move code
+        }
   
         Serial.print("Trav Error ");
         Serial.println(abs(getTrav() - travCommand));
@@ -691,11 +701,6 @@ void FreeMotion ()                                       //Runs the pan and rota
       doneMotion();
       delay(1000);
     }
-}
-
-void runTrack ()                                                //Runs the object tracking mode sequence
-{
- // Fill in later
 }
 
 // Motor and Positioning Functions
@@ -807,7 +812,9 @@ void movetospot(float endRot, float endPos, unsigned long Time) {
 
   float steptime = 150;
   float travRotPerStep = (1/1600) * 2;
+  float travStepPerRot = 800;
   float rotDegPerStep = (1/13) * 2;
+  float rotStepPerDeg = 13/2;
   float targetPos, targetRot;
   double kpr = 3;
   double kpp = 3;
@@ -824,17 +831,27 @@ void movetospot(float endRot, float endPos, unsigned long Time) {
   float startPos = getTrav();
   float startTime = millis();
 
+  float lastPercDone = 0;
+  float percDone = 0;
+
+  bool travSlower = false;
+
   currentRot = startRot;
   currentPos = startPos;
-  
-  //targetRot = currentRot 
-  //targetPos = 
-  
-  //rotError2 = 0;
-  //posError2 = 0;
-  
-  //rotError1 = targetRot - currentRot;
-  //posError1 = targetPos - currentPos;
+
+  float RotSteps = (endRot - startRot) * rotStepPerDeg;
+  float TravSteps = (endPos - startPos) * travStepPerRot;
+
+  Serial.print("RotSteps ");
+  Serial.println(RotSteps);
+  Serial.print("TravSteps ");
+  Serial.println(TravSteps);
+
+  if (TravSteps >= RotSteps){
+    travSlower = true;
+  } else{
+    travSlower = false;
+  }
 
   while (abs(endRot - currentRot) >= 0.5 or abs(endPos - currentPos) >= .5/360) {
     currentTime = millis();
@@ -843,14 +860,46 @@ void movetospot(float endRot, float endPos, unsigned long Time) {
     currentRot = getPan();
     currentPos = getTrav();
 
+    float travPerc = (currentPos-startPos)/(endPos-startPos);
+    float panPerc = (currentRot-startRot)/(endRot-startRot);
+
     if (currentTime - startTime <= Time){
-      targetPos = startPos + ((currentTime-startTime)/Time) * (endPos - startPos);
+      if (travSlower) {
+        targetPos = startPos + ((currentTime-startTime)/Time) * (endPos - startPos);       
+      } else{
+        targetRot = startRot + ((currentTime-startTime)/Time) * (endRot - startRot);
+      }
+
     } else{
-      targetPos = endPos;
+      if (travSlower){
+        targetPos = endPos;       
+      } else{
+        targetRot = endRot;
+      }
     }
-    float percTravDone = (currentPos-startPos)/(endPos-startPos);
-    Serial.println(percTravDone);
-    targetRot = startRot + (endRot - startRot)*percTravDone;
+
+    if (travSlower){
+      percDone = (currentPos-startPos)/(endPos-startPos);
+      float percToGo = percDone + (percDone - lastPercDone);
+      if (percToGo > 1){
+        percToGo = 1;
+      }
+      Serial.println(percToGo);
+      targetRot = startRot + (endRot - startRot)*percToGo;
+    
+      lastPercDone = percDone;
+    } else{
+      percDone = (currentRot-startRot)/(endRot-startRot);
+      float percToGo = percDone + (percDone - lastPercDone);
+      if (percToGo > 1){
+        percToGo = 1;
+      }
+      Serial.println(percToGo);
+      targetPos = startPos + (endPos - startPos)*percToGo;
+    
+      lastPercDone = percDone;
+    }
+
 
     rotError1 = targetRot - currentRot;
     posError1 = targetPos - currentPos;
