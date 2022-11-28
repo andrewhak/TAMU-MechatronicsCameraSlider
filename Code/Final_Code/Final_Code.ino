@@ -3,7 +3,7 @@
 #include <TCA9548.h>
 #include <LiquidCrystal.h>
 
-// Sensor Stuff
+// Sensor Stuff, Luke worked on this
 
 // Hardware interupts are pins 2, 3, 18, 19, 20, 21
 
@@ -46,7 +46,7 @@ volatile int numPoints;
 unsigned long oTime = 0;
 unsigned long oLoopTime = 0;
 
-// Motor Stuff
+// Motor Stuff Luke did some refinements on, 
 
 #define enablePin 26                         //Define motor enable pin
 #define travDirPin 25                        //Define travel & rotation stepper motor pins
@@ -61,7 +61,7 @@ bool rotstate = false;
 int i = 0;
 int j = 0;
 
-// Interface Stuff
+// Interface Stuff, Luke did some interface stuff building off of this
 
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 8, d7 = 7;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
@@ -90,11 +90,11 @@ volatile int backToMenu = false;
 void setup() {
 
   // Picked this Baud Rate as that's what rotary encoder demo used, 
-  // not sure how essential it is so don't mess with
+  // not sure how essential it is so don't mess with (Luke did this)
   
   Serial.begin(115200);
 
-  // Interface Stuff
+  // Interface Stuff, Luke did some work on
 
   lcd.begin(16, 2); // Initializes the interface to the LCD screen, and specifies the dimensions (width and height) of the display }
 
@@ -126,7 +126,7 @@ void setup() {
 
   Serial.println("Motor Setup Complete");
 
-  // Sensor Stuff
+  // Sensor Stuff, Luke worked on
     
   attachInterrupt(digitalPinToInterrupt(zeroPin), hitZero, CHANGE);
   
@@ -184,7 +184,7 @@ void setup() {
   Serial.println("Setup Done");
 }
 
-void loop() {
+void loop() { // Luke worked on this
   // put your main code here, to run repeatedly:
   encLowLim = 0;                                            //Mode selection menu, 2 modes
   encHighLim = 1;
@@ -243,7 +243,7 @@ void loop() {
 
 // Interface Functions
 
-void inputPanAndRotateData(){
+void inputPanAndRotateData(){ // Luke worked on this
   encLowLim = 0;                                            //Mode selection menu, 2 modes
   encHighLim = 1;
   encIncrement = 1;
@@ -324,7 +324,7 @@ void inputPanAndRotateData(){
   }
 }
 
-void pickTimes(int i){
+void pickTimes(int i){ // Luke worked on this
   encLowLim = 0;                                            //Mode selection menu, 50 modes
   encHighLim = 76;
   encIncrement = 1;
@@ -374,7 +374,7 @@ void pickTimes(int i){
   encoderPos = 0;
 }
 
-void pickNumPoints(){
+void pickNumPoints(){ // Luke worked on this
   encLowLim = 0;                                            //Mode selection menu, 50 modes
   encHighLim = 8;
   encIncrement = 1;
@@ -472,7 +472,7 @@ void setupMenu()                               //Display while setting up
 }
 
 void backToMain()                               //Display while returning to Main Menu
-{
+{ // Luke worked on this
   lcd.clear();
   lcd.setCursor(2, 0);
   lcd.print("Returning To");
@@ -481,19 +481,19 @@ void backToMain()                               //Display while returning to Mai
 }
 
 void pickedAPoint()                               //Display after picking a point
-{
+{ // Luke worked on this
   lcd.clear();
   lcd.print("Picked a Point");
 }
 
 void pickedATime()                               //Display after picking a time
-{
+{ // Luke worked on this
   lcd.clear();
   lcd.print("Picked a Time");
 }
 
 void pickedNumPoints()                               //Display after picking number of points
-{
+{ // Luke worked on this
   lcd.clear();
   lcd.setCursor(1, 0);
   lcd.print("Picked Num");
@@ -502,7 +502,7 @@ void pickedNumPoints()                               //Display after picking num
 }
 
 void updateMainMenu()                               //Updates the display data for the main menu
-{
+{ // Luke refined this
   lcd.clear();
   lcd.setCursor(2, 0);
   lcd.print("Free Motion");
@@ -520,7 +520,7 @@ void updateMainMenu()                               //Updates the display data f
 
 
 void updatePickMenu(int i)                               //Updates the display data for the pick menu
-{
+{ // Luke worked on this
   lcd.clear();
   lcd.setCursor(2, 0);
   lcd.print("Pick Pos ");
@@ -540,21 +540,21 @@ void updatePickMenu(int i)                               //Updates the display d
 }
 
 void updatePickTimeMenu(float timeValue)                               //Updates the display data for the pick time menu
-{
+{ // Luke worked on this
   lcd.clear();
   lcd.print("Runtime(s): ");
   lcd.print(timeValue/1000);
 }
 
 void updatePickNumMenu(float numPointsPicked)                               //Updates the display data for the pick shots menu
-{
+{ // Luke worked on this
   lcd.clear();
   lcd.print("Num Points: ");
   lcd.print(numPointsPicked);
 }
 
 void updateGateMenu()                               //Updates the display data for the pick menu
-{
+{ // Luke worked on this
   lcd.clear();
   lcd.setCursor(2, 0);
   lcd.print("Begin");
@@ -571,13 +571,13 @@ void updateGateMenu()                               //Updates the display data f
 }
 
 void doneMotion()                               //Updates the display data when motion is done
-{
+{ // Luke worked on this
   lcd.clear();
   lcd.print("Done Moving");
 }      
 
 
-void waitForConfirmation() {
+void waitForConfirmation() { // Luke worked on this
   encLowLim = 0;                                            //Mode selection menu, 2 modes
   encHighLim = 1;
   encIncrement = 1;
@@ -635,7 +635,7 @@ void waitForConfirmation() {
 }
 
 void Motion ()                                       //Runs the pan and rotate mode sequence
-{
+{ // Luke worked on this
     pinMode(enablePin, INPUT);
     pickNumPoints();
     inputPanAndRotateData();                                   //Get user inputs for pan movement
@@ -699,7 +699,7 @@ void Motion ()                                       //Runs the pan and rotate m
 
 // Motor and Positioning Functions
 
-void setZero(){
+void setZero(){ // Luke worked on this
   MP.selectChannel(0);
   float zero = tEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
   tEncoder.setOffset(-zero);
@@ -707,7 +707,7 @@ void setZero(){
   travO = 0;
 }
 
-void goToZero(){
+void goToZero(){ // Luke worked on this
   while (inZero == false){
     unsigned long cTime = millis();
     moveMotor(0, -2, 6);
@@ -719,7 +719,7 @@ void goToZero(){
   setZero();
 }
 
-float objTrack(float ang1, float ang2, float pos1, float pos2, float intPos) {
+float objTrack(float ang1, float ang2, float pos1, float pos2, float intPos) { // Luke did some work on this
   ang1 = radians(ang1);
   ang2 = radians(ang2);
   float len = pos2 - pos1;
@@ -809,7 +809,7 @@ void step2() {
 
 // move to a spot with control
 
-void movetospot(float endRot, float endPos, unsigned long Time) {
+void movetospot(float endRot, float endPos, unsigned long Time) { // Luke refined this
 
   double currentPos, currentRot, rotError1, posError1, rotError2, posError2;
   int rotStep, posStep;
@@ -973,7 +973,7 @@ void movetospot(float endRot, float endPos, unsigned long Time) {
 
 // move to a spot with control while tracking an object
 
-void movetrack(float endRot, float endPos, unsigned long Time) {
+void movetrack(float endRot, float endPos, unsigned long Time) { // Luke worked on this (just modified movetospot
 
   double currentPos, currentRot, rotError1, posError1, rotError2, posError2;
   int rotStep, posStep;
@@ -984,9 +984,9 @@ void movetrack(float endRot, float endPos, unsigned long Time) {
   float rotDegPerStep = (1/13) * 2;
   float rotStepPerDeg = 13/2;
   float targetPos, targetRot;
-  double kpr = 3;
+  double kpr = 3; // Luke refined some constant values
   double kpp = 3;
-  double kir = 0.0;
+  double kir = 0.0;  // Luke tried adding integral, but due to being position error integral causes overshoot
   double kip = 0.0;
   double kdr = 2;
   double kdp = 2;
@@ -1112,7 +1112,7 @@ void movetrack(float endRot, float endPos, unsigned long Time) {
 
 // Sensor Functions
 
-float getPan(){
+float getPan(){  // Luke refined this
   // Poll Pan Encoder
   MP.selectChannel(1);
   pan = pEncoder.rawAngle() * AS5600_RAW_TO_DEGREES;
@@ -1128,7 +1128,7 @@ float getPan(){
   return pan;
 }
 
-float getTrav(){
+float getTrav(){ // Luke refined this
   // Poll Travel Encoder
   // travO and travRots are stored globally as need to 
   // remember last poll to know if done a full rotation
@@ -1152,7 +1152,7 @@ float getTrav(){
   return(totTrav);
 }
 
-void hitZero() { // This needs work
+void hitZero() {  // Luke refined this
   // ISR, deal with hitting zero limit switch
   cli();
   if (millis() - oTimeHit >= debounceTime) {
