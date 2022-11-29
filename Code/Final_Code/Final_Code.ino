@@ -1,3 +1,8 @@
+// This code makes use of three extra libaries.
+// The AS5600 Library (MIT License Copyright (c) 2022-2022 Rob Tillaart)
+// The TCA9548 library (MIT License Copyright (c) 2021 - 2022 Rob Tillaart)
+// And the (put liquid crystal here)
+
 #include <Wire.h>
 #include <AS5600.h>
 #include <TCA9548.h>
